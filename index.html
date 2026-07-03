@@ -151,10 +151,26 @@ function getSetting(key, defaultValue) {
         
         document.addEventListener('DOMContentLoaded', function() {
           const hasSavedBase = localStorage.getItem('ifmis_api_base');
-          if (!window.location.protocol.startsWith('http') && !hasSavedBase) {
-            console.log('Running in pure offline standalone mode.');
-            return;
+          
+          const isLocal = window.location.hostname === 'localhost' || 
+                          window.location.hostname === '127.0.0.1' || 
+                          window.location.hostname === '[::1]' ||
+                          window.location.hostname.startsWith('192.168.') ||
+                          window.location.hostname.startsWith('10.') ||
+                          window.location.hostname.startsWith('172.');
+          
+          if (!window.location.protocol.startsWith('http')) {
+            if (!hasSavedBase) {
+              console.log('Running in pure offline standalone mode.');
+              return;
+            }
+          } else {
+            if (!isLocal && !hasSavedBase) {
+              console.log('Running on public static host client-only.');
+              return;
+            }
           }
+          
           const base = window.location.protocol.startsWith('http') ? window.location.origin : hasSavedBase;
           fetch('/api/config')
             .then(res => {
