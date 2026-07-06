@@ -7288,6 +7288,14 @@ function cleanRowData(row) {
   clean.year = v.year;
   clean.sourceFile = row.sourceFile || row["Source File"] || row.Source_File || row.source_file || "";
   clean["Source File"] = clean.sourceFile;
+  clean.voucherNo = v.voucherNo;
+  clean.majorHead = v.majorHead;
+  clean.tryCode = v.tryCode;
+  clean.tryName = v.tryName;
+  clean.month = v.month;
+  clean.year = v.year;
+  clean.sourceFile = row.sourceFile || row["Source File"] || row.Source_File || row.source_file || "";
+  clean["Source File"] = clean.sourceFile;
 
   // Final sanity check for any nested objects or arrays (preventing [object Object] bug)
   Object.keys(clean).forEach(key => {
