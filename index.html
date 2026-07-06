@@ -2977,19 +2977,64 @@ function run_audit_narratives(records) {
 
         // 8. Custom D3 Overrides Object
         window.getTreasuryAndPolFromRecords = function(records, isPayroll) {
+          const k3Map = {
+            "010":"BAL","020":"BAD","030":"BET","040":"BHI","050":"BPL","051":"VIN","052":"VAL","054":"CTB",
+            "060":"CHA","070":"CHI","080":"DAM","090":"DAT","100":"DEW","110":"DHA","120":"DIN","130":"GUN",
+            "140":"GWL","141":"MML","150":"HAR","160":"HOS","170":"IND","171":"INC","180":"JBP","181":"JBC",
+            "190":"JHA","200":"KAT","210":"KHA","220":"KAR","230":"MAN","240":"MND","250":"MOR","260":"NAR",
+            "270":"NEE","280":"PAN","290":"RIS","300":"RAJ","310":"RAT","320":"REW","330":"SAG","340":"SAT",
+            "350":"SEH","360":"SEO","370":"SHA","380":"SAJ","390":"SHI","400":"SHE","410":"SID","420":"TIK",
+            "430":"UJJ","440":"UMA","450":"VID","460":"ANU","470":"ASH","480":"BUR","490":"ALI","500":"SNG",
+            "510":"AGR","520":"NIW"
+          };
+
+          function getNormTryCode(tryCode) {
+            let val_str = String(tryCode).trim();
+            if (!val_str) return "";
+            if (val_str.endsWith(".0")) {
+              val_str = val_str.slice(0, -2);
+            }
+            if (/^\d+$/.test(val_str)) {
+              if (val_str.length === 1) return "0" + val_str + "0";
+              if (val_str.length === 2) return val_str + "0";
+              if (val_str.length === 3) return val_str;
+              return val_str.slice(0, 3);
+            }
+            return val_str.toUpperCase();
+          }
+
           let treasury = "";
           let pol = "";
           if (records && records.length > 0) {
             for (const r of records) {
               const file = r.sourceFile || "";
               if (file) {
-                const parts = file.replace(/\.(xlsx|xls|csv)$/i, "").split("_");
-                if (parts.length >= 4) {
-                  treasury = parts[0].trim();
-                  const month = parts[parts.length - 2].trim();
-                  const year = parts[parts.length - 1].trim();
-                  if (/^\d{2}$/.test(month) && /^\d{4}$/.test(year)) {
-                    pol = `${month}_${year}`;
+                const cleanFile = file.replace(/\.(xlsx|xls|csv)$/i, "").trim();
+                const dateMatch = cleanFile.match(/\b(0[1-9]|1[0-2])[-_\s](\d{4})\b/);
+                if (dateMatch) {
+                  pol = `${dateMatch[1]}_${dateMatch[2]}`;
+                }
+                const parts = cleanFile.split(/[\_\-\s]+/);
+                if (parts.length > 0) {
+                  const firstPart = parts[0].trim().toUpperCase();
+                  const ignored = ["CONSOLIDATED", "REMOVED", "DUPLICATES", "MERGED", "POL", "PAYROLL", "AUDIT", "REPORT", "IFMS", "UNKNOWN", "MULTIPART"];
+                  if (firstPart && !ignored.includes(firstPart)) {
+                    if (/^\d+$/.test(firstPart)) {
+                      const codeNorm = getNormTryCode(firstPart);
+                      if (codeNorm && k3Map[codeNorm]) {
+                        treasury = k3Map[codeNorm];
+                      } else if (firstPart.length === 3) {
+                        treasury = firstPart;
+                      }
+                    } else {
+                      treasury = firstPart;
+                    }
+                  }
+                  if (!treasury && parts.length > 1) {
+                    const secondPart = parts[1].trim().toUpperCase();
+                    if (secondPart && !ignored.includes(secondPart) && !/^\d+$/.test(secondPart)) {
+                      treasury = secondPart;
+                    }
                   }
                 }
               }
@@ -3006,9 +3051,18 @@ function run_audit_narratives(records) {
                   break;
                 }
               } else {
-                const tr = r.voucherDetails?.tryCodeChar || r.tryName || r.TRY_Name || "";
-                if (tr) { treasury = tr.trim(); break; }
-                const ddo = r.ddoName || r.DDO_Name || r.DDO_Name || "";
+                const tryCode = r.tryCode || r.tryCodeNum || r.TRY_Code || r.TRY_CD || "";
+                const codeNorm = getNormTryCode(tryCode);
+                if (codeNorm && k3Map[codeNorm]) {
+                  treasury = k3Map[codeNorm];
+                  break;
+                }
+                const tr = r.tryCodeChar || r.tryName || r.TRY_Name || r.voucherDetails?.tryCodeChar || "";
+                if (tr) {
+                  treasury = tr.trim();
+                  break;
+                }
+                const ddo = r.ddoName || r.DDO_Name || "";
                 if (ddo) {
                   const ddoParts = ddo.split(",");
                   treasury = ddoParts[ddoParts.length - 1].trim();
@@ -3035,8 +3089,8 @@ function run_audit_narratives(records) {
                   break;
                 }
               } else {
-                const m = r.paymentMonth || r.fyMonth;
-                const y = r.paymentYear || r.fyYear;
+                const m = r.paymentMonth || r.fyMonth || r.month;
+                const y = r.paymentYear || r.fyYear || r.year;
                 if (m && y) {
                   pol = `${String(m).padStart(2, '0')}_${y}`;
                   break;
