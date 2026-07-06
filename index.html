@@ -2994,7 +2994,7 @@ function run_audit_narratives(records) {
             if (val_str.endsWith(".0")) {
               val_str = val_str.slice(0, -2);
             }
-            if (/^\d+$/.test(val_str)) {
+            if (/^d+$/.test(val_str)) {
               if (val_str.length === 1) return "0" + val_str + "0";
               if (val_str.length === 2) return val_str + "0";
               if (val_str.length === 3) return val_str;
@@ -3007,10 +3007,10 @@ function run_audit_narratives(records) {
           let pol = "";
           if (records && records.length > 0) {
             for (const r of records) {
-              const file = r.sourceFile || "";
+              const file = r.sourceFile || r["Source File"] || r.Source_File || r.source_file || "";
               if (file) {
                 const cleanFile = file.replace(/\.(xlsx|xls|csv)$/i, "").trim();
-                const dateMatch = cleanFile.match(/\b(0[1-9]|1[0-2])[-_\s](\d{4})\b/);
+                const dateMatch = cleanFile.match(/(?:^|[^0-9])(0[1-9]|1[0-2])[-_\s](\d{4})(?:$|[^0-9])/);
                 if (dateMatch) {
                   pol = `${dateMatch[1]}_${dateMatch[2]}`;
                 }
@@ -3044,25 +3044,25 @@ function run_audit_narratives(records) {
           if (!treasury && records && records.length > 0) {
             for (const r of records) {
               if (isPayroll) {
-                const tr = r.ddoName || r.ddoCode || "";
+                const tr = r.ddoName || r["DDO Name"] || r.ddoCode || r["DDO Code"] || "";
                 if (tr) {
                   const trParts = tr.split(",");
                   treasury = trParts[trParts.length - 1].trim();
                   break;
                 }
               } else {
-                const tryCode = r.tryCode || r.tryCodeNum || r.TRY_Code || r.TRY_CD || "";
+                const tryCode = r.tryCode || r["Try Code"] || r.tryCodeNum || r.TRY_Code || r.TRY_CD || "";
                 const codeNorm = getNormTryCode(tryCode);
                 if (codeNorm && k3Map[codeNorm]) {
                   treasury = k3Map[codeNorm];
                   break;
                 }
-                const tr = r.tryCodeChar || r.tryName || r.TRY_Name || r.voucherDetails?.tryCodeChar || "";
+                const tr = r.tryCodeChar || r.tryName || r["Try Name"] || r.TRY_Name || r.voucherDetails?.tryCodeChar || "";
                 if (tr) {
                   treasury = tr.trim();
                   break;
                 }
-                const ddo = r.ddoName || r.DDO_Name || "";
+                const ddo = r.ddoName || r["DDO Name"] || r.DDO_Name || "";
                 if (ddo) {
                   const ddoParts = ddo.split(",");
                   treasury = ddoParts[ddoParts.length - 1].trim();
@@ -3076,7 +3076,7 @@ function run_audit_narratives(records) {
           if (!pol && records && records.length > 0) {
             for (const r of records) {
               if (isPayroll) {
-                const m = r.month, y = r.year;
+                const m = r.month || r.Month || r["Month"], y = r.year || r.Year || r["Year"];
                 if (m && y) {
                   const monthsMap = {
                     january:"01", february:"02", march:"03", april:"04", may:"05", june:"06",
@@ -3089,8 +3089,8 @@ function run_audit_narratives(records) {
                   break;
                 }
               } else {
-                const m = r.paymentMonth || r.fyMonth || r.month;
-                const y = r.paymentYear || r.fyYear || r.year;
+                const m = r.paymentMonth || r.fyMonth || r.month || r.Month || r["Month"];
+                const y = r.paymentYear || r.fyYear || r.year || r.Year || r["Year"];
                 if (m && y) {
                   pol = `${String(m).padStart(2, '0')}_${y}`;
                   break;
@@ -7280,6 +7280,14 @@ function cleanRowData(row) {
   clean["Try Name"] = v.tryName;
   clean["Month"] = v.month;
   clean["Year"] = v.year;
+  clean.voucherNo = v.voucherNo;
+  clean.majorHead = v.majorHead;
+  clean.tryCode = v.tryCode;
+  clean.tryName = v.tryName;
+  clean.month = v.month;
+  clean.year = v.year;
+  clean.sourceFile = row.sourceFile || row["Source File"] || row.Source_File || row.source_file || "";
+  clean["Source File"] = clean.sourceFile;
 
   // Final sanity check for any nested objects or arrays (preventing [object Object] bug)
   Object.keys(clean).forEach(key => {
